@@ -1,1 +1,1738 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SQUAD GAME — Lampu Merah Lampu Hijau 3D (Belajar Sambil Bermain)</title>
 
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Google Fonts: Fredoka & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --sq-pink: #ff1e7a;
+      --sq-pink-dark: #c90e5c;
+      --sq-teal: #00d2b8;
+      --sq-yellow: #ffe600;
+      --sq-bg: #0b0b10;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--sq-bg);
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-display {
+      font-family: 'Fredoka', sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    /* Neon & Glass Effects */
+    .neon-pink-border {
+      border: 2px solid rgba(255, 30, 122, 0.65);
+      box-shadow: 0 0 24px rgba(255, 30, 122, 0.25), inset 0 0 16px rgba(255, 30, 122, 0.1);
+    }
+
+    .neon-green-glow {
+      box-shadow: 0 0 32px rgba(16, 185, 129, 0.45);
+    }
+
+    .neon-red-glow {
+      box-shadow: 0 0 36px rgba(239, 68, 68, 0.65);
+    }
+
+    /* Screen Red Flash Animation on Elimination */
+    @keyframes screenFlashRed {
+      0% { opacity: 0.85; }
+      25% { opacity: 0.25; }
+      50% { opacity: 0.75; }
+      100% { opacity: 0; }
+    }
+
+    .flash-red-active {
+      animation: screenFlashRed 0.9s ease-out forwards;
+    }
+
+    /* Pulse Alert */
+    @keyframes popShake {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      20% { transform: scale(1.06) rotate(-1.5deg); }
+      40% { transform: scale(1.08) rotate(1.5deg); }
+      60% { transform: scale(1.05) rotate(-1deg); }
+      80% { transform: scale(1.03) rotate(1deg); }
+    }
+
+    .animate-pop-shake {
+      animation: popShake 0.45s ease-in-out infinite;
+    }
+
+    /* Custom Range Slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      border-radius: 999px;
+      background: #262636;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--sq-pink);
+      border: 3px solid #ffffff;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(255, 30, 122, 0.8);
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Ensure Canvases fill containers properly */
+    #threeContainer canvas,
+    #webcamCanvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 1rem;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-gradient-to-b from-[#0d0d14] via-[#13111c] to-[#0a0a0f]">
+
+  <!-- Full-Screen Red Elimination Flash Overlay -->
+  <div id="redFlashOverlay" class="pointer-events-none fixed inset-0 z-50 bg-red-600 opacity-0"></div>
+
+  <!-- START MODAL OVERLAY -->
+  <div id="startModal" class="fixed inset-0 z-40 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+    <div class="max-w-xl w-full bg-[#151521] neon-pink-border rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden">
+      <!-- Decorative Squad Shapes -->
+      <div class="flex justify-center items-center gap-4 mb-4">
+        <span class="w-10 h-10 rounded-full border-4 border-[#ff1e7a] inline-block shadow-[0_0_15px_#ff1e7a]"></span>
+        <svg class="w-11 h-11 text-[#ff1e7a] drop-shadow-[0_0_10px_#ff1e7a]" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="10">
+          <polygon points="50,12 90,85 10,85" />
+        </svg>
+        <span class="w-10 h-10 border-4 border-[#ff1e7a] inline-block shadow-[0_0_15px_#ff1e7a]"></span>
+      </div>
+
+      <div class="inline-block px-4 py-1 rounded-full bg-[#ffe600] text-black font-extrabold text-xs sm:text-sm uppercase tracking-wider mb-3">
+        Belajar Sambil Bermain • Interaktif 3D
+      </div>
+
+      <h1 class="font-display text-3xl sm:text-5xl font-bold text-white leading-tight mb-2">
+        SQUAD <span class="text-[#ff1e7a]">GAME</span>
+      </h1>
+      <p class="text-base sm:text-lg font-bold text-pink-200 mb-5">
+        Lampu Merah • Lampu Hijau (Deteksi Gerak Kamera)
+      </p>
+
+      <div class="bg-black/45 rounded-2xl p-4 text-left text-xs sm:text-sm text-gray-200 space-y-2.5 mb-6 border border-white/10">
+        <div class="flex items-start gap-2.5">
+          <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">1</span>
+          <p><strong class="text-emerald-400">LAMPU HIJAU:</strong> Boneka membelakangi pemain & lagu diputar dengan kecepatan acak (<span class="text-yellow-300 font-bold">1x, 3x, atau 5x!</span>). Bergeraklah maju!</p>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">2</span>
+          <p><strong class="text-red-400">LAMPU MERAH:</strong> Saat lagu berhenti, boneka menoleh! <strong>DIAM MEMBATU!</strong> Pemain yang bergerak akan terdeteksi <span class="text-red-400 font-bold">MERAH MENYALA</span> dan terkena tembakan eliminasi.</p>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="px-2 py-0.5 rounded bg-pink-500/20 text-pink-400 font-bold">3</span>
+          <p>Pastikan kamera mengarah ke area pemain dan volume suara aktif.</p>
+        </div>
+      </div>
+
+      <button id="startBtn" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#ff1e7a] via-[#ff3385] to-[#e11d48] hover:from-[#ff3388] hover:to-[#f43f5e] text-white font-display text-lg sm:text-2xl font-bold shadow-[0_0_30px_rgba(255,30,122,0.6)] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-3">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        MULAI GAME & AKTIFKAN KAMERA
+      </button>
+
+      <p id="cameraErrorMsg" class="hidden mt-3 text-xs text-amber-300 bg-amber-950/70 border border-amber-500/40 rounded-xl p-2.5"></p>
+    </div>
+  </div>
+
+  <!-- TOP HEADER & STATUS BAR -->
+  <header class="w-full px-3 sm:px-6 pt-3 pb-2">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 bg-[#151521]/90 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-2.5 shadow-lg">
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 bg-black/60 px-2.5 py-1.5 rounded-xl border border-[#ff1e7a]/50">
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-[#ff1e7a]"></span>
+          <svg class="w-4 h-4 text-[#ff1e7a]" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="14">
+            <polygon points="50,12 90,85 10,85" />
+          </svg>
+          <span class="w-3.5 h-3.5 border-2 border-[#ff1e7a]"></span>
+        </div>
+        <div>
+          <h1 class="font-display text-lg sm:text-2xl font-bold leading-none tracking-wide">
+            SQUAD <span class="text-[#ff1e7a]">GAME</span>
+          </h1>
+          <span class="text-[11px] sm:text-xs font-semibold text-yellow-300">Belajar Sambil Bermain</span>
+        </div>
+      </div>
+
+      <!-- BIG GAME PHASE BANNER -->
+      <div id="statusPill" class="flex-1 min-w-[230px] max-w-md mx-auto text-center py-2 px-4 rounded-xl bg-slate-800 border-2 border-slate-600 transition-all duration-200">
+        <div id="statusText" class="font-display text-lg sm:text-2xl font-extrabold tracking-wide text-white">
+          MENUNGGU MULAI...
+        </div>
+      </div>
+
+      <!-- SCOREBOARD COUNTERS -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-center">
+          <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Ronde</div>
+          <div id="roundCount" class="font-display text-lg sm:text-xl font-bold text-white">0</div>
+        </div>
+        <div class="bg-emerald-950/50 border border-emerald-500/30 rounded-xl px-3 py-1.5 text-center">
+          <div class="text-[10px] uppercase tracking-wider text-emerald-300 font-bold">Selamat</div>
+          <div id="safeCount" class="font-display text-lg sm:text-xl font-bold text-emerald-400">0</div>
+        </div>
+        <div class="bg-red-950/50 border border-red-500/30 rounded-xl px-3 py-1.5 text-center">
+          <div class="text-[10px] uppercase tracking-wider text-red-300 font-bold">Eliminasi</div>
+          <div id="elimCount" class="font-display text-lg sm:text-xl font-bold text-red-400">0</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DUAL VIEWPORT: 3D DOLL STAGE + WEBCAM MOTION DETECTOR -->
+  <main class="flex-1 w-full px-3 sm:px-6 py-2 flex items-stretch">
+    <div class="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+
+      <!-- LEFT VIEWPORT: 3D YOUNG-HEE DOLL (THREE.JS) -->
+      <section class="relative rounded-2xl overflow-hidden bg-sky-900 border-2 border-white/15 shadow-2xl min-h-[300px] sm:min-h-[380px] lg:min-h-[450px] flex flex-col">
+        <!-- Top Overlay: Song Speed Indicator -->
+        <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div class="px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 text-xs font-bold text-white flex items-center gap-2">
+            <span id="dollEyeDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span id="dollStateLabel">BONEKA PENJAGA 3D</span>
+          </div>
+
+          <!-- SPEED BADGE -->
+          <div id="speedBadge" class="px-4 py-1.5 rounded-xl bg-yellow-400 text-black font-display text-sm sm:text-base font-extrabold shadow-lg border-2 border-white transition-all duration-200">
+            SPEED: 1x NORMAL
+          </div>
+        </div>
+
+        <!-- Three.js Canvas Container -->
+        <div id="threeContainer" class="w-full h-full flex-1 cursor-grab active:cursor-grabbing"></div>
+
+        <!-- Bottom Hint -->
+        <div class="absolute bottom-2.5 left-3 right-3 z-10 flex justify-between items-center pointer-events-none text-[11px] text-white/85">
+          <span class="bg-black/55 backdrop-blur-sm px-2.5 py-1 rounded-lg">Geser layar 3D untuk memutar sudut kamera</span>
+          <span id="audioStatusBadge" class="bg-black/55 backdrop-blur-sm px-2.5 py-1 rounded-lg text-emerald-300 font-semibold">Audio Siap</span>
+        </div>
+      </section>
+
+      <!-- RIGHT VIEWPORT: WEBCAM MOTION DETECTION FEED -->
+      <section id="webcamSection" class="relative rounded-2xl overflow-hidden bg-[#111119] border-2 border-white/15 shadow-2xl min-h-[300px] sm:min-h-[380px] lg:min-h-[450px] flex flex-col">
+        <!-- Top Overlay: Motion Meter & Detector Status -->
+        <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div id="camBadge" class="px-3 py-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-xs font-bold text-white flex items-center gap-2">
+            <span id="camRecordDot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+            <span id="camLabelText">KAMERA PEMAIN (CERMIN)</span>
+          </div>
+
+          <!-- Real-time Motion Level Meter -->
+          <div class="bg-black/75 backdrop-blur-md border border-white/15 rounded-xl px-3 py-1.5 flex items-center gap-2">
+            <span class="text-[11px] font-bold text-gray-300">GERAK:</span>
+            <div class="w-24 sm:w-28 h-2.5 bg-gray-800 rounded-full overflow-hidden">
+              <div id="motionBar" class="h-full w-0 bg-emerald-400 transition-all duration-75"></div>
+            </div>
+            <span id="motionPercentText" class="text-[11px] font-extrabold text-white w-9 text-right">0%</span>
+          </div>
+        </div>
+
+        <!-- Hidden raw video element -->
+        <video id="webcamVideo" autoplay playsinline muted class="hidden"></video>
+
+        <!-- Visible Mirrored + Red Motion Highlight Canvas -->
+        <canvas id="webcamCanvas" class="w-full h-full flex-1 object-cover bg-[#0e0e15]"></canvas>
+
+        <!-- BIG "GERAKAN TERDETEKSI!" ALERT OVERLAY -->
+        <div id="detectedBanner" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center bg-red-600/35 backdrop-blur-[2px] p-4 pointer-events-none">
+          <div class="animate-pop-shake bg-red-600 border-4 border-white text-white px-6 py-4 rounded-3xl shadow-[0_0_50px_rgba(255,0,40,0.95)] text-center">
+            <div class="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-yellow-200 mb-1">
+              ⚠️ PELANGGARAN LAMPU MERAH ⚠️
+            </div>
+            <div class="font-display text-2xl sm:text-4xl font-extrabold tracking-wide drop-shadow">
+              GERAKAN TERDETEKSI!
+            </div>
+            <div class="text-xs sm:text-sm font-bold mt-1 text-white/95">
+              Ronde berikutnya dalam 2.5 detik...
+            </div>
+          </div>
+        </div>
+
+        <!-- "AMAN / BERTAHAN" FEEDBACK OVERLAY -->
+        <div id="safeBanner" class="hidden absolute inset-0 z-20 flex items-center justify-center pointer-events-none p-4">
+          <div class="bg-emerald-600/90 border-4 border-white text-white px-6 py-3 rounded-3xl shadow-[0_0_35px_rgba(16,185,129,0.85)] text-center">
+            <div class="font-display text-2xl sm:text-3xl font-extrabold">
+              ✅ AMAN! TIDAK BERGERAK!
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Legend -->
+        <div class="absolute bottom-2.5 left-3 right-3 z-10 flex justify-between items-center pointer-events-none text-[11px]">
+          <span class="bg-black/65 backdrop-blur-sm px-2.5 py-1 rounded-lg text-red-300 font-semibold flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-[#ff0028] inline-block"></span>
+            Sorotan Merah = Area Terdeteksi Bergerak
+          </span>
+          <span id="graceTimerText" class="hidden bg-amber-500 text-black font-extrabold px-2.5 py-1 rounded-lg">
+            JEDA BERHENTI...
+          </span>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- BOTTOM PRACTICAL CONTROL BAR -->
+  <footer class="w-full px-3 sm:px-6 pb-3 pt-1">
+    <div class="max-w-7xl mx-auto bg-[#151521]/95 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+
+      <!-- Sensitivity Slider -->
+      <div class="flex-1 min-w-[240px] max-w-md flex flex-col gap-1">
+        <div class="flex justify-between items-center text-xs font-bold">
+          <label for="sensitivitySlider" class="text-pink-300 flex items-center gap-1.5">
+            <span>🎯 Sensitivitas Deteksi Gerak</span>
+          </label>
+          <span id="sensitivityVal" class="px-2 py-0.5 rounded bg-[#ff1e7a]/20 text-[#ff1e7a] font-extrabold">65% (Sedang)</span>
+        </div>
+        <input id="sensitivitySlider" type="range" min="10" max="95" value="65" class="w-full" />
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button id="pauseBtn" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow">
+          <span id="pauseIcon">⏸️</span>
+          <span id="pauseText">Pause</span>
+        </button>
+
+        <button id="forceRedBtn" class="px-4 py-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5 border border-rose-400/30" title="Uji langsung fase Lampu Merah">
+          <span>🔴 Uji Lampu Merah</span>
+        </button>
+
+        <button id="resetBtn" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5">
+          <span>🔄 Reset Skor</span>
+        </button>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- GAME ENGINE & THREE.JS + WEBCAM LOGIC -->
+  <script>
+    /**
+     * ============================================================================
+     * KONFIGURASI AUDIO & URL ASET
+     * ============================================================================
+     */
+    const SONG_URL = "https://raw.githubusercontent.com/fauzanbunz/squidgame/main/Squid%20Game%20Sound%20Effect.mp3";
+    const GUNFIRE_URL = "https://raw.githubusercontent.com/fauzanbunz/squidgame/main/ElevenLabs_Burst_of_gunfire__Chaotic_firing_during_a_bank_robbery_alarm.mp3";
+
+    const songAudio = new Audio(SONG_URL);
+    songAudio.preload = "auto";
+
+    const gunfireAudio = new Audio(GUNFIRE_URL);
+    gunfireAudio.preload = "auto";
+
+    // Fallback Web Audio Synth jika koneksi GitHub lambat/terblokir
+    let webAudioCtx = null;
+    let fallbackOscNodes = [];
+
+    function initWebAudioFallback() {
+      if (!webAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) webAudioCtx = new AudioCtx();
+      }
+      if (webAudioCtx && webAudioCtx.state === "suspended") {
+        webAudioCtx.resume();
+      }
+    }
+
+    function stopFallbackSynth() {
+      fallbackOscNodes.forEach(node => {
+        try { node.stop(); node.disconnect(); } catch (e) {}
+      });
+      fallbackOscNodes = [];
+    }
+
+    // Melodi "Mugunghwa Kkoci Pieot Seumnida" sintetis jika MP3 gagal dimuat
+    function playFallbackChant(speed, onComplete) {
+      initWebAudioFallback();
+      stopFallbackSynth();
+      if (!webAudioCtx) return;
+
+      // Nada-nada khas boneka Squid Game
+      const notes = [
+        { freq: 440, dur: 0.45 }, // Mu
+        { freq: 440, dur: 0.45 }, // gung
+        { freq: 440, dur: 0.45 }, // hwa
+        { freq: 392, dur: 0.45 }, // kko
+        { freq: 440, dur: 0.45 }, // ci
+        { freq: 523.25, dur: 0.55 }, // pi
+        { freq: 440, dur: 0.45 }, // eot
+        { freq: 392, dur: 0.45 }, // seum
+        { freq: 329.63, dur: 0.55 }, // ni
+        { freq: 293.66, dur: 0.85 }  // da
+      ];
+
+      let currentTime = webAudioCtx.currentTime + 0.05;
+      const pitchShift = speed === 1 ? 1.0 : speed === 3 ? 1.45 : 1.85;
+
+      notes.forEach(n => {
+        const scaledDur = n.dur / speed;
+        const osc = webAudioCtx.createOscillator();
+        const gain = webAudioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(n.freq * pitchShift, currentTime);
+
+        gain.gain.setValueAtTime(0.001, currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.22, currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, currentTime + scaledDur * 0.92);
+
+        osc.connect(gain);
+        gain.connect(webAudioCtx.destination);
+        osc.start(currentTime);
+        osc.stop(currentTime + scaledDur);
+        fallbackOscNodes.push(osc);
+
+        currentTime += scaledDur;
+      });
+
+      const totalMs = (currentTime - webAudioCtx.currentTime) * 1000;
+      return setTimeout(() => {
+        if (gameState.phase === "GREEN_LIGHT" && !gameState.isPaused) {
+          onComplete();
+        }
+      }, totalMs);
+    }
+
+    function playFallbackGunfire() {
+      initWebAudioFallback();
+      if (!webAudioCtx) return;
+      for (let i = 0; i < 6; i++) {
+        const start = webAudioCtx.currentTime + i * 0.11;
+        const bufferSize = webAudioCtx.sampleRate * 0.14;
+        const buffer = webAudioCtx.createBuffer(1, bufferSize, webAudioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let j = 0; j < bufferSize; j++) {
+          data[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufferSize * 0.25));
+        }
+        const noise = webAudioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = webAudioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 1100;
+        const gain = webAudioCtx.createGain();
+        gain.gain.setValueAtTime(0.45, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.13);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(webAudioCtx.destination);
+        noise.start(start);
+      }
+    }
+
+    /**
+     * ============================================================================
+     * STATE PERMAINAN
+     * ============================================================================
+     */
+    const gameState = {
+      started: false,
+      isPaused: false,
+      phase: "IDLE", // IDLE | GREEN_LIGHT | GRACE_PERIOD | RED_LIGHT | ELIMINATED | ROUND_SAFE
+      round: 0,
+      safeRounds: 0,
+      eliminations: 0,
+      currentSpeed: 1.0,
+      lastSpeed: null,
+      sensitivity: 65, // 10 - 95
+      motionPercent: 0,
+      cameraReady: false,
+      simulationMode: false,
+      timers: {
+        songWatchdog: null,
+        graceTimer: null,
+        redLightDuration: null,
+        nextRoundTimer: null
+      }
+    };
+
+    function clearAllGameTimers() {
+      Object.keys(gameState.timers).forEach(k => {
+        if (gameState.timers[k]) {
+          clearTimeout(gameState.timers[k]);
+          gameState.timers[k] = null;
+        }
+      });
+      stopFallbackSynth();
+    }
+
+    /**
+     * ============================================================================
+     * ELEMEN DOM UI
+     * ============================================================================
+     */
+    const startModal = document.getElementById("startModal");
+    const startBtn = document.getElementById("startBtn");
+    const cameraErrorMsg = document.getElementById("cameraErrorMsg");
+
+    const statusPill = document.getElementById("statusPill");
+    const statusText = document.getElementById("statusText");
+    const speedBadge = document.getElementById("speedBadge");
+    const dollEyeDot = document.getElementById("dollEyeDot");
+    const dollStateLabel = document.getElementById("dollStateLabel");
+    const audioStatusBadge = document.getElementById("audioStatusBadge");
+
+    const roundCountEl = document.getElementById("roundCount");
+    const safeCountEl = document.getElementById("safeCount");
+    const elimCountEl = document.getElementById("elimCount");
+
+    const webcamSection = document.getElementById("webcamSection");
+    const webcamVideo = document.getElementById("webcamVideo");
+    const webcamCanvas = document.getElementById("webcamCanvas");
+    const webcamCtx = webcamCanvas.getContext("2d");
+
+    const camRecordDot = document.getElementById("camRecordDot");
+    const camLabelText = document.getElementById("camLabelText");
+    const motionBar = document.getElementById("motionBar");
+    const motionPercentText = document.getElementById("motionPercentText");
+    const detectedBanner = document.getElementById("detectedBanner");
+    const safeBanner = document.getElementById("safeBanner");
+    const graceTimerText = document.getElementById("graceTimerText");
+    const redFlashOverlay = document.getElementById("redFlashOverlay");
+
+    const sensitivitySlider = document.getElementById("sensitivitySlider");
+    const sensitivityVal = document.getElementById("sensitivityVal");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const pauseIcon = document.getElementById("pauseIcon");
+    const pauseText = document.getElementById("pauseText");
+    const forceRedBtn = document.getElementById("forceRedBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    /**
+     * ============================================================================
+     * THREE.JS — KARAKTER BONEKA 3D SQUID GAME & LINGKUNGAN
+     * ============================================================================
+     */
+    let scene, camera, renderer;
+    let dollGroup, headGroup, leftArmGroup, rightArmGroup;
+    let redEyeLeft, redEyeRight, scanBeamGroup;
+    let targetBodyRotY = Math.PI; // Mulai membelakangi kamera
+    let targetHeadRotY = 0;
+    let wheatBlades = [];
+    let cloudGroup;
+
+    // Kontrol Orbit Kamera Manual (Mouse & Touch)
+    let isDragging3D = false;
+    let prevPointerX = 0;
+    let prevPointerY = 0;
+    let cameraOrbitAngle = 0;
+    let cameraOrbitHeight = 2.4;
+
+    function initThreeJS() {
+      const container = document.getElementById("threeContainer");
+      const width = container.clientWidth || 600;
+      const height = container.clientHeight || 420;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x6eb5ff);
+      scene.fog = new THREE.FogExp2(0x8ec5fc, 0.016);
+
+      camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 150);
+      camera.position.set(0, cameraOrbitHeight, 7.6);
+      camera.lookAt(0, 2.0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Pencahayaan Hangat Lapangan Terbuka
+      const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0xb48a3e, 0.85);
+      hemiLight.position.set(0, 20, 0);
+      scene.add(hemiLight);
+
+      const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.15);
+      dirLight.position.set(6, 12, 8);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      dirLight.shadow.camera.near = 1;
+      dirLight.shadow.camera.far = 35;
+      const d = 8;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      scene.add(dirLight);
+
+      buildEnvironment();
+      buildSquidDoll();
+
+      // Event listener rotasi sudut pandang 3D
+      const domEl = renderer.domElement;
+      domEl.addEventListener("mousedown", e => {
+        isDragging3D = true;
+        prevPointerX = e.clientX;
+        prevPointerY = e.clientY;
+      });
+      window.addEventListener("mouseup", () => { isDragging3D = false; });
+      window.addEventListener("mousemove", e => {
+        if (!isDragging3D) return;
+        const dx = e.clientX - prevPointerX;
+        const dy = e.clientY - prevPointerY;
+        prevPointerX = e.clientX;
+        prevPointerY = e.clientY;
+        cameraOrbitAngle -= dx * 0.008;
+        cameraOrbitAngle = Math.max(-1.1, Math.min(1.1, cameraOrbitAngle));
+        cameraOrbitHeight = Math.max(1.2, Math.min(4.5, cameraOrbitHeight + dy * 0.01));
+      });
+
+      domEl.addEventListener("touchstart", e => {
+        if (e.touches.length === 1) {
+          isDragging3D = true;
+          prevPointerX = e.touches[0].clientX;
+          prevPointerY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+      window.addEventListener("touchend", () => { isDragging3D = false; });
+      window.addEventListener("touchmove", e => {
+        if (!isDragging3D || e.touches.length !== 1) return;
+        const dx = e.touches[0].clientX - prevPointerX;
+        const dy = e.touches[0].clientY - prevPointerY;
+        prevPointerX = e.touches[0].clientX;
+        prevPointerY = e.touches[0].clientY;
+        cameraOrbitAngle -= dx * 0.008;
+        cameraOrbitAngle = Math.max(-1.1, Math.min(1.1, cameraOrbitAngle));
+        cameraOrbitHeight = Math.max(1.2, Math.min(4.5, cameraOrbitHeight + dy * 0.01));
+      }, { passive: true });
+
+      // Resize observer agar canvas 3D selalu proporsional
+      const resizeObserver = new ResizeObserver(() => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w > 0 && h > 0) {
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+        }
+      });
+      resizeObserver.observe(container);
+    }
+
+    /**
+     * Membangun Latar Belakang 3D:
+     * - Hamparan rumput/gandum keemasan
+     * - Pohon besar bercabang di belakang boneka
+     * - Rumah putih beratap genteng merah di kejauhan
+     * - Awan lembut di langit biru
+     */
+    function buildEnvironment() {
+      // Hamparan tanah & gandum keemasan luas
+      const groundGeo = new THREE.CircleGeometry(65, 48);
+      const groundMat = new THREE.MeshStandardMaterial({
+        color: 0xd4a438,
+        roughness: 0.92,
+        metalness: 0.02
+      });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Area tanah pasir pijakan boneka
+      const padGeo = new THREE.CylinderGeometry(3.2, 3.6, 0.06, 32);
+      const padMat = new THREE.MeshStandardMaterial({ color: 0xd9c39e, roughness: 0.9 });
+      const pad = new THREE.Mesh(padGeo, padMat);
+      pad.position.set(0, 0.02, -0.5);
+      pad.receiveShadow = true;
+      scene.add(pad);
+
+      // Garis batas merah di tanah
+      const lineGeo = new THREE.PlaneGeometry(14, 0.18);
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0xff1e7a });
+      const line = new THREE.Mesh(lineGeo, lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.04, 2.3);
+      scene.add(line);
+
+      // Batang-batang gandum keemasan bergoyang di sekitar lapangan
+      const bladeGeo = new THREE.ConeGeometry(0.06, 0.75, 4);
+      const bladeMat1 = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.8 });
+      const bladeMat2 = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.85 });
+
+      for (let i = 0; i < 240; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 3.8 + Math.random() * 22;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius - 3;
+        // Kosongkan jalur tepat di depan kamera
+        if (z > 1.5 && Math.abs(x) < 2.8) continue;
+
+        const blade = new THREE.Mesh(bladeGeo, i % 2 === 0 ? bladeMat1 : bladeMat2);
+        blade.position.set(x, 0.35, z);
+        blade.rotation.z = (Math.random() - 0.5) * 0.25;
+        scene.add(blade);
+        wheatBlades.push({
+          mesh: blade,
+          phase: Math.random() * Math.PI * 2,
+          baseRotZ: blade.rotation.z
+        });
+      }
+
+      // POHON BESAR BERCABANG DI BELAKANG BONEKA
+      const treeGroup = new THREE.Group();
+      treeGroup.position.set(0, 0, -4.4);
+      const barkMat = new THREE.MeshStandardMaterial({ color: 0x4b3624, roughness: 0.95 });
+
+      // Batang utama besar
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.95, 4.4, 14), barkMat);
+      trunk.position.y = 2.1;
+      trunk.castShadow = true;
+      trunk.receiveShadow = true;
+      treeGroup.add(trunk);
+
+      // Cabang-cabang utama menyebar seperti di gambar referensi
+      const branches = [
+        { pos: [-1.1, 4.3, 0.1], rot: [0.1, 0, 0.65], rTop: 0.16, rBot: 0.36, len: 3.1 },
+        { pos: [1.15, 4.4, -0.1], rot: [-0.08, 0, -0.62], rTop: 0.16, rBot: 0.36, len: 3.2 },
+        { pos: [-0.3, 4.7, -0.2], rot: [-0.18, 0, 0.22], rTop: 0.14, rBot: 0.30, len: 2.7 },
+        { pos: [0.4, 4.6, 0.25], rot: [0.22, 0, -0.28], rTop: 0.13, rBot: 0.28, len: 2.6 },
+        { pos: [-2.3, 5.2, 0.2], rot: [0.05, 0, 1.05], rTop: 0.08, rBot: 0.18, len: 2.1 },
+        { pos: [2.4, 5.3, -0.15], rot: [-0.05, 0, -1.02], rTop: 0.08, rBot: 0.18, len: 2.2 }
+      ];
+
+      branches.forEach(b => {
+        const br = new THREE.Mesh(new THREE.CylinderGeometry(b.rTop, b.rBot, b.len, 10), barkMat);
+        br.position.set(...b.pos);
+        br.rotation.set(...b.rot);
+        br.castShadow = true;
+        treeGroup.add(br);
+      });
+
+      // Rimbunan dedaunan kering keemasan-zaitun di puncak cabang
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x6b7038, roughness: 0.9 });
+      const leafPositions = [
+        [-2.2, 5.7, 0.1, 1.3],
+        [2.3, 5.8, -0.1, 1.35],
+        [0, 6.2, -0.2, 1.5],
+        [-1.1, 5.9, 0.3, 1.15],
+        [1.2, 6.0, 0.2, 1.2]
+      ];
+      leafPositions.forEach(([lx, ly, lz, lr]) => {
+        const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(lr, 1), leafMat);
+        foliage.position.set(lx, ly, lz);
+        foliage.scale.set(1.3, 0.65, 1.1);
+        treeGroup.add(foliage);
+      });
+
+      scene.add(treeGroup);
+
+      // RUMAH PUTIH BERATAP GENTENG MERAH DI KEJAUHAN KANAN
+      const houseGroup = new THREE.Group();
+      houseGroup.position.set(9.2, 0, -16.5);
+      houseGroup.rotation.y = -0.35;
+
+      // Dinding putih
+      const wallMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(3.4, 2.0, 2.5),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.85 })
+      );
+      wallMesh.position.y = 1.0;
+      wallMesh.castShadow = true;
+      houseGroup.add(wallMesh);
+
+      // Atap genteng merah prisma
+      const roofGeo = new THREE.ConeGeometry(2.65, 1.25, 4);
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0xc8372d, roughness: 0.75 });
+      const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+      roofMesh.position.y = 2.62;
+      roofMesh.rotation.y = Math.PI / 4;
+      roofMesh.scale.set(1.15, 1.0, 0.88);
+      houseGroup.add(roofMesh);
+
+      // Jendela & pintu kecil
+      const winMat = new THREE.MeshBasicMaterial({ color: 0x334155 });
+      const win1 = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55), winMat);
+      win1.position.set(-0.75, 1.1, 1.26);
+      houseGroup.add(win1);
+
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 1.1), winMat);
+      door.position.set(0.65, 0.55, 1.26);
+      houseGroup.add(door);
+
+      scene.add(houseGroup);
+
+      // AWAN-AWAN PUTIH DI LANGIT
+      cloudGroup = new THREE.Group();
+      const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+      const cloudCoords = [
+        [-9, 8.5, -18],
+        [7, 9.2, -20],
+        [-2, 10.2, -24],
+        [14, 7.8, -16]
+      ];
+      cloudCoords.forEach(([cx, cy, cz]) => {
+        const cCluster = new THREE.Group();
+        cCluster.position.set(cx, cy, cz);
+        for (let k = 0; k < 3; k++) {
+          const puff = new THREE.Mesh(new THREE.SphereGeometry(1.1 - k * 0.18, 12, 12), cloudMat);
+          puff.position.set((k - 1) * 1.1, (k % 2) * 0.25, 0);
+          puff.scale.set(1.4, 0.75, 0.9);
+          cCluster.add(puff);
+        }
+        cloudGroup.add(cCluster);
+      });
+      scene.add(cloudGroup);
+    }
+
+    /**
+     * Membangun Karakter 3D Boneka Squid Game (Young-Hee) sesuai Gambar Referensi:
+     * - Kaos kuning berkerah (#ffe600)
+     * - Gaun terusan oranye lipit (#d95b26)
+     * - Sendi siku mekanik boneka terlihat jelas
+     * - Kaus kaki putih selutut & sepatu hitam
+     * - Kepala bulat, rambut poni rata, kuncir dua bawah dengan ikat ungu, mata menyala merah
+     */
+    function buildSquidDoll() {
+      dollGroup = new THREE.Group();
+      dollGroup.position.set(0, 0, 0.2);
+
+      // Material Karakter
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xf4cfb2, roughness: 0.55, metalness: 0.05 });
+      const blushMat = new THREE.MeshStandardMaterial({ color: 0xf0938b, roughness: 0.65, transparent: true, opacity: 0.55 });
+      const yellowShirtMat = new THREE.MeshStandardMaterial({ color: 0xffe600, roughness: 0.5 });
+      const orangeDressMat = new THREE.MeshStandardMaterial({ color: 0xd95b26, roughness: 0.58 });
+      const whiteSockMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
+      const shoeMat = new THREE.MeshStandardMaterial({ color: 0x262629, roughness: 0.4 });
+      const hairMat = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.65 });
+      const purpleTieMat = new THREE.MeshStandardMaterial({ color: 0x9333ea, roughness: 0.4 });
+      const jointDarkMat = new THREE.MeshStandardMaterial({ color: 0x2d2d30, roughness: 0.5 });
+
+      // 1. KAKI, KAUS KAKI PUTIH PANJANG & SEPATU HITAM
+      [-0.32, 0.32].forEach(xPos => {
+        const legUnit = new THREE.Group();
+        legUnit.position.set(xPos, 0, 0);
+
+        // Sepatu hitam bulat
+        const shoeBase = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.52), shoeMat);
+        shoeBase.position.set(0, 0.07, 0.08);
+        shoeBase.castShadow = true;
+        legUnit.add(shoeBase);
+
+        const shoeToe = new THREE.Mesh(new THREE.SphereGeometry(0.165, 14, 12), shoeMat);
+        shoeToe.scale.set(0.96, 0.72, 1.3);
+        shoeToe.position.set(0, 0.09, 0.24);
+        legUnit.add(shoeToe);
+
+        // Kaus kaki putih selutut
+        const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.125, 0.92, 16), whiteSockMat);
+        sock.position.set(0, 0.58, 0);
+        sock.castShadow = true;
+        legUnit.add(sock);
+
+        // Lipatan atas kaus kaki
+        const sockCuff = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.024, 10, 20), whiteSockMat);
+        sockCuff.rotation.x = Math.PI / 2;
+        sockCuff.position.set(0, 1.03, 0);
+        legUnit.add(sockCuff);
+
+        // Paha atas warna kulit
+        const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.148, 0.55, 16), skinMat);
+        thigh.position.set(0, 1.3, 0);
+        legUnit.add(thigh);
+
+        dollGroup.add(legUnit);
+      });
+
+      // 2. BADAN: KAOS KUNING & GAUN PINAFORE ORANYE LIPIT
+      const torsoGroup = new THREE.Group();
+      torsoGroup.position.set(0, 1.5, 0);
+
+      // Rok lipit oranye (A-line flared)
+      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.72, 1.15, 24), orangeDressMat);
+      skirt.position.set(0, 0.52, 0);
+      skirt.castShadow = true;
+      skirt.receiveShadow = true;
+      torsoGroup.add(skirt);
+
+      // Garis-garis lipitan vertikal pada rok oranye
+      for (let p = 0; p < 16; p++) {
+        const ang = (p / 16) * Math.PI * 2;
+        const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.12, 0.05), orangeDressMat);
+        const rMid = 0.56;
+        pleat.position.set(Math.sin(ang) * rMid, 0.52, Math.cos(ang) * rMid);
+        pleat.rotation.y = ang;
+        pleat.rotation.x = -0.24;
+        torsoGroup.add(pleat);
+      }
+
+      // Kaos kuning bagian atas dada
+      const yellowChest = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.43, 0.78, 20), yellowShirtMat);
+      yellowChest.position.set(0, 1.42, 0);
+      yellowChest.scale.set(1.08, 1, 0.78);
+      yellowChest.castShadow = true;
+      torsoGroup.add(yellowChest);
+
+      // Celemek dada gaun oranye (bib pinafore)
+      const orangeBib = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.62, 0.56), orangeDressMat);
+      orangeBib.position.set(0, 1.36, 0.02);
+      torsoGroup.add(orangeBib);
+
+      // Dua tali bahu oranye
+      [-0.22, 0.22].forEach(sx => {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.26, 0.56), orangeDressMat);
+        strap.position.set(sx, 1.74, 0);
+        torsoGroup.add(strap);
+      });
+
+      // Kerah baju kuning bulat (Peter Pan collar)
+      const collarLeft = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), yellowShirtMat);
+      collarLeft.scale.set(1.2, 0.25, 0.9);
+      collarLeft.position.set(-0.14, 1.82, 0.16);
+      collarLeft.rotation.y = 0.3;
+      torsoGroup.add(collarLeft);
+
+      const collarRight = collarLeft.clone();
+      collarRight.position.set(0.14, 1.82, 0.16);
+      collarRight.rotation.y = -0.3;
+      torsoGroup.add(collarRight);
+
+      dollGroup.add(torsoGroup);
+
+      // 3. LENGAN DENGAN SENDI SIKU ENGSEL BONEKA (SEPERTI REFERENSI)
+      function createDollArm(side) {
+        // side: -1 (kiri karakter / kanan layar), +1 (kanan karakter)
+        const armGroup = new THREE.Group();
+        armGroup.position.set(side * 0.52, 3.16, 0);
+        armGroup.rotation.z = side * 0.26; // Terbuka sedikit ke samping
+
+        // Lengan baju kuning pendek (puffed sleeve)
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.44, 16), yellowShirtMat);
+        sleeve.position.set(0, -0.18, 0);
+        sleeve.castShadow = true;
+        armGroup.add(sleeve);
+
+        // Lengan atas kulit
+        const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.115, 0.32, 14), skinMat);
+        upperArm.position.set(0, -0.5, 0);
+        armGroup.add(upperArm);
+
+        // SENDI SIKU MEKANIK BONEKA (Engsel bulat + celah hitam di tengah!)
+        const elbowDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.2, 14), skinMat);
+        elbowDrum.rotation.z = Math.PI / 2;
+        elbowDrum.position.set(0, -0.68, 0);
+        armGroup.add(elbowDrum);
+
+        const elbowSlot = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.23), jointDarkMat);
+        elbowSlot.position.set(0, -0.68, 0);
+        armGroup.add(elbowSlot);
+
+        // Lengan bawah kulit
+        const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.095, 0.52, 14), skinMat);
+        forearm.position.set(0, -0.98, 0);
+        forearm.castShadow = true;
+        armGroup.add(forearm);
+
+        // Pergelangan & Tangan boneka terbuka
+        const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.24, 0.18), skinMat);
+        hand.position.set(side * 0.04, -1.32, 0.02);
+        hand.rotation.z = side * 0.22;
+        armGroup.add(hand);
+
+        // Ibu jari
+        const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.028, 0.14, 8), skinMat);
+        thumb.position.set(0, -1.28, 0.12);
+        thumb.rotation.x = 0.55;
+        armGroup.add(thumb);
+
+        return armGroup;
+      }
+
+      leftArmGroup = createDollArm(-1);
+      rightArmGroup = createDollArm(1);
+      dollGroup.add(leftArmGroup);
+      dollGroup.add(rightArmGroup);
+
+      // 4. LEHER & KEPALA BONEKA (DAPAT BERPUTAR CEPAT 180° SECARA INDEPENDEN!)
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.21, 0.28, 16), skinMat);
+      neck.position.set(0, 3.42, 0);
+      dollGroup.add(neck);
+
+      headGroup = new THREE.Group();
+      headGroup.position.set(0, 3.96, 0);
+
+      // Bentuk kepala bulat dengan pipi penuh khas boneka Young-Hee
+      const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.56, 28, 24), skinMat);
+      cranium.scale.set(1.02, 1.06, 0.96);
+      cranium.castShadow = true;
+      headGroup.add(cranium);
+
+      // Pipi merona kiri & kanan
+      [-0.27, 0.27].forEach(cx => {
+        const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), blushMat);
+        cheek.position.set(cx, -0.08, 0.44);
+        cheek.scale.set(1.15, 0.85, 0.5);
+        headGroup.add(cheek);
+      });
+
+      // Telinga kiri & kanan
+      [-0.55, 0.55].forEach(ex => {
+        const ear = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), skinMat);
+        ear.scale.set(0.45, 1.1, 0.75);
+        ear.position.set(ex, -0.03, -0.02);
+        headGroup.add(ear);
+      });
+
+      // Hidung mungil
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.13, 10), skinMat);
+      nose.position.set(0, -0.04, 0.55);
+      nose.rotation.x = 0.35;
+      headGroup.add(nose);
+
+      // Bibir merah mungil
+      const lipMat = new THREE.MeshStandardMaterial({ color: 0xd9383a, roughness: 0.35 });
+      const upperLip = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), lipMat);
+      upperLip.scale.set(1.35, 0.45, 0.55);
+      upperLip.position.set(0, -0.21, 0.51);
+      headGroup.add(upperLip);
+
+      const lowerLip = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), lipMat);
+      lowerLip.scale.set(1.2, 0.48, 0.55);
+      lowerLip.position.set(0, -0.25, 0.50);
+      headGroup.add(lowerLip);
+
+      // MATA BESAR EKSPRESIF + LAMPU MERAH PEMINDAI
+      const scleraMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const irisMat = new THREE.MeshBasicMaterial({ color: 0x2b1d14 });
+      const pupilMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+      const redGlowMat = new THREE.MeshBasicMaterial({ color: 0xff0028 });
+
+      function createEye(ex) {
+        const eyeHolder = new THREE.Group();
+        eyeHolder.position.set(ex, 0.08, 0.47);
+        eyeHolder.rotation.y = ex * 0.25;
+
+        const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 14), scleraMat);
+        sclera.scale.set(1.25, 0.85, 0.55);
+        eyeHolder.add(sclera);
+
+        const iris = new THREE.Mesh(new THREE.SphereGeometry(0.068, 14, 12), irisMat);
+        iris.position.set(0, 0, 0.045);
+        iris.scale.set(1, 1, 0.4);
+        eyeHolder.add(iris);
+
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.036, 12, 10), pupilMat);
+        pupil.position.set(0, 0, 0.062);
+        pupil.scale.set(1, 1, 0.35);
+        eyeHolder.add(pupil);
+
+        // Kilau putih kecil di mata
+        const glint = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), scleraMat);
+        glint.position.set(0.02, 0.02, 0.072);
+        eyeHolder.add(glint);
+
+        // Alis hitam rapi
+        const brow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.025, 0.04), hairMat);
+        brow.position.set(0, 0.14, 0.03);
+        brow.rotation.z = -ex * 0.15;
+        eyeHolder.add(brow);
+
+        // Lapisan Mata Menyala Merah saat LAMPU MERAH
+        const redIris = new THREE.Mesh(new THREE.SphereGeometry(0.082, 14, 12), redGlowMat);
+        redIris.position.set(0, 0, 0.065);
+        redIris.scale.set(1.15, 0.85, 0.4);
+        redIris.visible = false;
+        eyeHolder.add(redIris);
+
+        return { eyeHolder, redIris };
+      }
+
+      const leftEyeObj = createEye(-0.22);
+      const rightEyeObj = createEye(0.22);
+      redEyeLeft = leftEyeObj.redIris;
+      redEyeRight = rightEyeObj.redIris;
+      headGroup.add(leftEyeObj.eyeHolder);
+      headGroup.add(rightEyeObj.eyeHolder);
+
+      // Sinar Laser Pemindai Merah dari Mata (aktif saat Red Light)
+      scanBeamGroup = new THREE.Group();
+      scanBeamGroup.visible = false;
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0xff0033,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      [-0.22, 0.22].forEach(bx => {
+        const beamGeo = new THREE.ConeGeometry(0.95, 7.5, 16, 1, true);
+        const beam = new THREE.Mesh(beamGeo, beamMat);
+        beam.position.set(bx, -0.5, 4.1);
+        beam.rotation.x = -Math.PI / 2 + 0.18;
+        scanBeamGroup.add(beam);
+      });
+      headGroup.add(scanBeamGroup);
+
+      // RAMBUT HITAM DENGAN PONI RATA & DUA KUNCIR BAWAH IKAT UNGU
+      // Helm rambut utama (belakang & atas)
+      const hairCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.585, 28, 24, 0, Math.PI * 2, 0, Math.PI * 0.62),
+        hairMat
+      );
+      hairCap.rotation.x = -0.22;
+      hairCap.position.set(0, 0.04, -0.03);
+      headGroup.add(hairCap);
+
+      // Bagian rambut belakang menutup tengkuk
+      const backHair = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.52, 0.48, 20, 1, false, Math.PI * 0.55, Math.PI * 0.9), hairMat);
+      backHair.position.set(0, -0.18, -0.05);
+      headGroup.add(backHair);
+
+      // Poni rata lurus di dahi (bangs)
+      const bangsGroup = new THREE.Group();
+      for (let b = -4; b <= 4; b++) {
+        const angle = b * 0.14;
+        const strand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.24, 0.08), hairMat);
+        strand.position.set(Math.sin(angle) * 0.53, 0.31, Math.cos(angle) * 0.53);
+        strand.rotation.y = angle;
+        strand.rotation.x = -0.25;
+        bangsGroup.add(strand);
+      }
+      // Jepit rambut kecil warna ungu di poni kanan (seperti di foto)
+      const hairClip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.045, 0.04), purpleTieMat);
+      hairClip.position.set(0.24, 0.36, 0.52);
+      hairClip.rotation.y = 0.42;
+      hairClip.rotation.z = -0.1;
+      bangsGroup.add(hairClip);
+
+      headGroup.add(bangsGroup);
+
+      // Dua Kuncir Ekor Kuda Bawah + Ikat Rambut Ungu
+      [-1, 1].forEach(side => {
+        const pigtailGroup = new THREE.Group();
+        pigtailGroup.position.set(side * 0.48, -0.34, -0.12);
+        pigtailGroup.rotation.z = side * 0.48;
+        pigtailGroup.rotation.x = -0.15;
+
+        // Manik-manik ikat rambut ungu
+        for (let bead = 0; bead < 6; bead++) {
+          const bAng = (bead / 6) * Math.PI * 2;
+          const tieBead = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 8), purpleTieMat);
+          tieBead.position.set(Math.cos(bAng) * 0.085, 0, Math.sin(bAng) * 0.085);
+          pigtailGroup.add(tieBead);
+        }
+
+        // Ekor kuda rambut mengembang
+        const tailCone = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.42, 14), hairMat);
+        tailCone.position.set(0, -0.2, 0);
+        pigtailGroup.add(tailCone);
+
+        headGroup.add(pigtailGroup);
+      });
+
+      dollGroup.add(headGroup);
+
+      // Awalnya boneka membelakangi kamera (menghadap pohon)
+      dollGroup.rotation.y = Math.PI;
+      scene.add(dollGroup);
+    }
+
+    /**
+     * ============================================================================
+     * DETEKSI GERAK WEBCAM REAL-TIME (FRAME DIFFERENCING + SOROTAN MERAH)
+     * ============================================================================
+     */
+    const PROC_W = 200;
+    const PROC_H = 150;
+    const procCanvas = document.createElement("canvas");
+    procCanvas.width = PROC_W;
+    procCanvas.height = PROC_H;
+    const procCtx = procCanvas.getContext("2d", { willReadFrequently: true });
+
+    const highlightCanvas = document.createElement("canvas");
+    highlightCanvas.width = PROC_W;
+    highlightCanvas.height = PROC_H;
+    const highlightCtx = highlightCanvas.getContext("2d");
+
+    let prevGrayFrame = null;
+    let frozenHighlightFrame = null;
+
+    async function setupWebcam() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+          },
+          audio: false
+        });
+        webcamVideo.srcObject = stream;
+        await webcamVideo.play();
+        gameState.cameraReady = true;
+        gameState.simulationMode = false;
+        camRecordDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+        camLabelText.textContent = "KAMERA AKTIF (CERMIN)";
+        return true;
+      } catch (err) {
+        console.warn("Webcam tidak tersedia / ditolak:", err);
+        gameState.cameraReady = false;
+        gameState.simulationMode = true;
+        camRecordDot.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+        camLabelText.textContent = "MODE SIMULASI (GERAKKAN MOUSE DI LAYAR INI)";
+        return false;
+      }
+    }
+
+    // Mode simulasi jika user membuka di perangkat tanpa webcam
+    let simMousePos = { x: -1, y: -1, moved: false };
+    webcamCanvas.addEventListener("mousemove", e => {
+      if (!gameState.simulationMode) return;
+      const rect = webcamCanvas.getBoundingClientRect();
+      simMousePos.x = ((e.clientX - rect.left) / rect.width) * PROC_W;
+      simMousePos.y = ((e.clientY - rect.top) / rect.height) * PROC_H;
+      simMousePos.moved = true;
+    });
+
+    function processWebcamFrame() {
+      // Sesuaikan ukuran canvas tampilan dengan kontainer
+      const parent = webcamCanvas.parentElement;
+      if (parent && (webcamCanvas.width !== parent.clientWidth || webcamCanvas.height !== parent.clientHeight)) {
+        if (parent.clientWidth > 0 && parent.clientHeight > 0) {
+          webcamCanvas.width = parent.clientWidth;
+          webcamCanvas.height = parent.clientHeight;
+        }
+      }
+
+      const dispW = webcamCanvas.width || 640;
+      const dispH = webcamCanvas.height || 480;
+
+      // 1. Gambar feed kamera (cermin / mirrored) ke canvas analisis & canvas utama
+      procCtx.save();
+      procCtx.scale(-1, 1);
+      if (gameState.cameraReady && webcamVideo.readyState >= 2) {
+        procCtx.drawImage(webcamVideo, -PROC_W, 0, PROC_W, PROC_H);
+      } else {
+        // Latar simulasi kelas jika tanpa webcam
+        procCtx.fillStyle = "#181824";
+        procCtx.fillRect(-PROC_W, 0, PROC_W, PROC_H);
+      }
+      procCtx.restore();
+
+      // Gambar video jernih ke layar utama
+      webcamCtx.save();
+      webcamCtx.scale(-1, 1);
+      if (gameState.cameraReady && webcamVideo.readyState >= 2) {
+        webcamCtx.drawImage(webcamVideo, -dispW, 0, dispW, dispH);
+      } else {
+        webcamCtx.fillStyle = "#181824";
+        webcamCtx.fillRect(-dispW, 0, dispW, dispH);
+        webcamCtx.scale(-1, 1);
+        webcamCtx.fillStyle = "#94a3b8";
+        webcamCtx.font = "bold 16px Plus Jakarta Sans, sans-serif";
+        webcamCtx.textAlign = "center";
+        webcamCtx.fillText("Kamera tidak terdeteksi — Gerakkan kursor di area ini untuk simulasi", dispW / 2, dispH / 2);
+        webcamCtx.save();
+        webcamCtx.scale(-1, 1);
+      }
+      webcamCtx.restore();
+
+      // Jika sedang tereliminasi, tampilkan freeze-frame sorotan merah pelanggaran
+      if (gameState.phase === "ELIMINATED" && frozenHighlightFrame) {
+        webcamCtx.save();
+        webcamCtx.shadowColor = "#ff0028";
+        webcamCtx.shadowBlur = 18;
+        webcamCtx.drawImage(highlightCanvas, 0, 0, dispW, dispH);
+        webcamCtx.restore();
+        return;
+      }
+
+      // 2. Bandingkan piksel frame sekarang dengan frame sebelumnya
+      const frameData = procCtx.getImageData(0, 0, PROC_W, PROC_H).data;
+      const totalPixels = PROC_W * PROC_H;
+      const currentGray = new Uint8Array(totalPixels);
+
+      // Ambang batas perbedaan piksel berdasarkan slider sensitivitas (10..95)
+      // Sensitivitas tinggi (95) -> threshold kecil (14)
+      // Sensitivitas rendah (10) -> threshold besar (72)
+      const pixelDiffThreshold = Math.round(78 - (gameState.sensitivity * 0.68));
+
+      const outImg = highlightCtx.createImageData(PROC_W, PROC_H);
+      const outData = outImg.data;
+      let movingCount = 0;
+
+      for (let i = 0, p = 0; i < frameData.length; i += 4, p++) {
+        const r = frameData[i];
+        const g = frameData[i + 1];
+        const b = frameData[i + 2];
+        const gray = (r * 77 + g * 150 + b * 29) >> 8;
+        currentGray[p] = gray;
+
+        if (prevGrayFrame) {
+          const diff = Math.abs(gray - prevGrayFrame[p]);
+          if (diff > pixelDiffThreshold) {
+            movingCount++;
+            // Warnai piksel bergerak dengan MERAH TERANG MENYALA rgba(255, 0, 40, 0.85)
+            outData[i] = 255;
+            outData[i + 1] = 0;
+            outData[i + 2] = 40;
+            outData[i + 3] = 218;
+          }
+        }
+      }
+
+      // Simulasi gerak mouse jika tanpa webcam
+      if (gameState.simulationMode && simMousePos.moved) {
+        const mx = Math.floor(simMousePos.x);
+        const my = Math.floor(simMousePos.y);
+        for (let dy = -14; dy <= 14; dy++) {
+          for (let dx = -14; dx <= 14; dx++) {
+            if (dx * dx + dy * dy <= 196) {
+              const px = mx + dx;
+              const py = my + dy;
+              if (px >= 0 && px < PROC_W && py >= 0 && py < PROC_H) {
+                const idx = (py * PROC_W + px) * 4;
+                outData[idx] = 255;
+                outData[idx + 1] = 0;
+                outData[idx + 2] = 40;
+                outData[idx + 3] = 225;
+                movingCount++;
+              }
+            }
+          }
+        }
+        simMousePos.moved = false;
+      }
+
+      prevGrayFrame = currentGray;
+
+      // Hitung persentase gerakan
+      const rawPct = (movingCount / totalPixels) * 100;
+      gameState.motionPercent = Math.min(100, rawPct * 3.2);
+
+      // Update bar indikator gerakan di UI
+      motionBar.style.width = `${Math.min(100, gameState.motionPercent)}%`;
+      motionPercentText.textContent = `${Math.round(gameState.motionPercent)}%`;
+
+      if (gameState.phase === "RED_LIGHT" && !gameState.isPaused) {
+        motionBar.className = "h-full bg-red-500 transition-all duration-75";
+
+        // Gambar sorotan merah menyala di atas feed kamera pemain!
+        highlightCtx.putImageData(outImg, 0, 0);
+        webcamCtx.save();
+        webcamCtx.shadowColor = "#ff0028";
+        webcamCtx.shadowBlur = 16;
+        webcamCtx.drawImage(highlightCanvas, 0, 0, dispW, dispH);
+        webcamCtx.restore();
+
+        // Ambang batas pemicu eliminasi (disesuaikan halus dengan sensitivitas)
+        const triggerThresholdPct = Math.max(1.4, 8.5 - (gameState.sensitivity * 0.068));
+
+        if (gameState.motionPercent >= triggerThresholdPct) {
+          frozenHighlightFrame = true;
+          triggerElimination();
+        }
+      } else {
+        motionBar.className = "h-full bg-emerald-400 transition-all duration-75";
+      }
+    }
+
+    /**
+     * ============================================================================
+     * LOGIKA ALUR PERMAINAN (LAMPU HIJAU -> LAMPU MERAH -> ELIMINASI / SELAMAT)
+     * ============================================================================
+     */
+    function pickRandomSpeed() {
+      const speeds = [1.0, 3.0, 5.0];
+      // Hindari pengulangan kecepatan yang sama berturut-turut agar variatif
+      const candidates = speeds.filter(s => s !== gameState.lastSpeed);
+      const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+      gameState.lastSpeed = chosen;
+      return chosen;
+    }
+
+    function updateSpeedUI(speed) {
+      if (speed === 1.0) {
+        speedBadge.textContent = "SPEED: 1x NORMAL";
+        speedBadge.className = "px-4 py-1.5 rounded-xl bg-emerald-400 text-black font-display text-sm sm:text-base font-extrabold shadow-lg border-2 border-white";
+      } else if (speed === 3.0) {
+        speedBadge.textContent = "SPEED: 3x CEPAT!";
+        speedBadge.className = "px-4 py-1.5 rounded-xl bg-amber-400 text-black font-display text-sm sm:text-base font-extrabold shadow-lg border-2 border-white animate-pulse";
+      } else {
+        speedBadge.textContent = "SPEED: 5x SUPER CEPAT!";
+        speedBadge.className = "px-4 py-1.5 rounded-xl bg-[#ff1e7a] text-white font-display text-sm sm:text-base font-extrabold shadow-lg border-2 border-yellow-300 animate-bounce";
+      }
+    }
+
+    function setDollRedEyes(active) {
+      if (redEyeLeft) redEyeLeft.visible = active;
+      if (redEyeRight) redEyeRight.visible = active;
+      if (scanBeamGroup) scanBeamGroup.visible = active;
+      dollEyeDot.className = active
+        ? "w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"
+        : "w-2.5 h-2.5 rounded-full bg-emerald-400";
+      dollStateLabel.textContent = active ? "BONEKA MEMINDAI AREA!" : "BONEKA MEMBELAKANGI PEMAIN";
+    }
+
+    // FASE 1: LAMPU HIJAU (GREEN LIGHT)
+    function startGreenLightRound() {
+      if (!gameState.started || gameState.isPaused) return;
+      clearAllGameTimers();
+
+      gameState.round++;
+      roundCountEl.textContent = gameState.round;
+      gameState.phase = "GREEN_LIGHT";
+      frozenHighlightFrame = false;
+
+      // Sembunyikan banner peringatan
+      detectedBanner.classList.add("hidden");
+      safeBanner.classList.add("hidden");
+      graceTimerText.classList.add("hidden");
+      webcamSection.classList.remove("neon-red-glow", "border-red-500");
+      webcamSection.classList.add("border-emerald-400/60");
+
+      // Boneka membelakangi kamera & mata normal
+      targetBodyRotY = Math.PI;
+      targetHeadRotY = 0;
+      setDollRedEyes(false);
+
+      // Update Banner Status Hijau
+      statusPill.className = "flex-1 min-w-[230px] max-w-md mx-auto text-center py-2 px-4 rounded-xl bg-emerald-600 border-2 border-emerald-300 neon-green-glow transition-all duration-200";
+      statusText.textContent = "🟢 LAMPU HIJAU: JALAN!";
+
+      // Pilih kecepatan acak: 1x, 3x, atau 5x
+      const speed = pickRandomSpeed();
+      gameState.currentSpeed = speed;
+      updateSpeedUI(speed);
+
+      // Putar lagu dengan kecepatan acak & pitch melengking
+      try {
+        songAudio.pause();
+        songAudio.currentTime = 0;
+        songAudio.playbackRate = speed;
+        songAudio.preservesPitch = false;
+        songAudio.mozPreservesPitch = false;
+        songAudio.webkitPreservesPitch = false;
+
+        const playPromise = songAudio.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              audioStatusBadge.textContent = `Audio Lagu (${speed}x)`;
+              // Safety watchdog jika event ended tertunda
+              const durSec = (songAudio.duration && isFinite(songAudio.duration)) ? songAudio.duration : 5.2;
+              const maxWaitMs = ((durSec / speed) + 0.65) * 1000;
+              gameState.timers.songWatchdog = setTimeout(() => {
+                if (gameState.phase === "GREEN_LIGHT" && !gameState.isPaused) {
+                  transitionToRedLight();
+                }
+              }, maxWaitMs);
+            })
+            .catch(err => {
+              console.warn("Gagal memutar MP3 GitHub, beralih ke audio sintetis:", err);
+              audioStatusBadge.textContent = `Audio Synth (${speed}x)`;
+              gameState.timers.songWatchdog = playFallbackChant(speed, transitionToRedLight);
+            });
+        }
+      } catch (e) {
+        gameState.timers.songWatchdog = playFallbackChant(speed, transitionToRedLight);
+      }
+    }
+
+    // Event listener saat lagu selesai diputar -> langsung ke LAMPU MERAH
+    songAudio.addEventListener("ended", () => {
+      if (gameState.phase === "GREEN_LIGHT" && !gameState.isPaused) {
+        clearAllGameTimers();
+        transitionToRedLight();
+      }
+    });
+
+    // FASE 2: TRANSISI & LAMPU MERAH (RED LIGHT)
+    function transitionToRedLight() {
+      if (!gameState.started || gameState.isPaused) return;
+      clearAllGameTimers();
+      songAudio.pause();
+
+      // Jeda reaksi singkat 0.45 detik saat boneka berputar agar pemain sempat mengerem langkah
+      gameState.phase = "GRACE_PERIOD";
+
+      // Boneka berputar cepat 180 derajat menghadap pemain!
+      targetBodyRotY = 0;
+      targetHeadRotY = 0;
+      setDollRedEyes(true);
+
+      statusPill.className = "flex-1 min-w-[230px] max-w-md mx-auto text-center py-2 px-4 rounded-xl bg-red-600 border-2 border-yellow-300 neon-red-glow transition-all duration-150";
+      statusText.textContent = "🔴 LAMPU MERAH: DIAM!";
+      graceTimerText.classList.remove("hidden");
+
+      webcamSection.classList.remove("border-emerald-400/60");
+      webcamSection.classList.add("border-red-500", "neon-red-glow");
+
+      gameState.timers.graceTimer = setTimeout(() => {
+        if (gameState.phase !== "GRACE_PERIOD" || gameState.isPaused) return;
+        graceTimerText.classList.add("hidden");
+        gameState.phase = "RED_LIGHT";
+
+        // Durasi memindai Lampu Merah (acak antara 3.4 - 4.8 detik)
+        const scanDurationMs = 3400 + Math.random() * 1400;
+        gameState.timers.redLightDuration = setTimeout(() => {
+          if (gameState.phase === "RED_LIGHT" && !gameState.isPaused) {
+            handleRoundSafe();
+          }
+        }, scanDurationMs);
+      }, 450);
+    }
+
+    // FASE 3A: GERAKAN TERDETEKSI -> ELIMINASI & TEMBAKAN
+    function triggerElimination() {
+      if (gameState.phase === "ELIMINATED") return;
+      clearAllGameTimers();
+      gameState.phase = "ELIMINATED";
+
+      gameState.eliminations++;
+      elimCountEl.textContent = gameState.eliminations;
+
+      // Kilatan layar merah
+      redFlashOverlay.classList.remove("flash-red-active");
+      void redFlashOverlay.offsetWidth; // trigger reflow
+      redFlashOverlay.classList.add("flash-red-active");
+
+      // Tampilkan peringatan besar
+      detectedBanner.classList.remove("hidden");
+      statusText.textContent = "💥 GERAKAN TERDETEKSI!";
+
+      // Mainkan suara tembakan
+      try {
+        gunfireAudio.pause();
+        gunfireAudio.currentTime = 0;
+        gunfireAudio.play().catch(() => {
+          playFallbackGunfire();
+        });
+      } catch (e) {
+        playFallbackGunfire();
+      }
+
+      // Lanjut otomatis ke ronde berikutnya setelah 2.5 detik
+      gameState.timers.nextRoundTimer = setTimeout(() => {
+        if (gameState.started && !gameState.isPaused) {
+          startGreenLightRound();
+        }
+      }, 2500);
+    }
+
+    // FASE 3B: PEMAIN BERHASIL DIAM (AMAN)
+    function handleRoundSafe() {
+      clearAllGameTimers();
+      gameState.phase = "ROUND_SAFE";
+
+      gameState.safeRounds++;
+      safeCountEl.textContent = gameState.safeRounds;
+
+      safeBanner.classList.remove("hidden");
+      statusPill.className = "flex-1 min-w-[230px] max-w-md mx-auto text-center py-2 px-4 rounded-xl bg-emerald-700 border-2 border-white transition-all";
+      statusText.textContent = "✅ RONDE SELAMAT!";
+
+      gameState.timers.nextRoundTimer = setTimeout(() => {
+        if (gameState.started && !gameState.isPaused) {
+          startGreenLightRound();
+        }
+      }, 1600);
+    }
+
+    /**
+     * ============================================================================
+     * LOOP ANIMASI UTAMA (THREE.JS + KAMERA)
+     * ============================================================================
+     */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsed = clock.getElapsedTime();
+
+      // Animasi Boneka 3D
+      if (dollGroup && headGroup) {
+        // Interpolasi rotasi cepat 180 derajat
+        const turnLerp = gameState.phase === "GREEN_LIGHT" ? 0.12 : 0.28;
+        dollGroup.rotation.y += (targetBodyRotY - dollGroup.rotation.y) * turnLerp;
+
+        if (gameState.phase === "GREEN_LIGHT" && !gameState.isPaused) {
+          // Bergoyang ceria mengikuti tempo lagu
+          const swayFreq = 3.5 * Math.sqrt(gameState.currentSpeed);
+          dollGroup.rotation.z = Math.sin(elapsed * swayFreq) * 0.045;
+          dollGroup.position.y = Math.abs(Math.sin(elapsed * swayFreq)) * 0.06;
+          headGroup.rotation.z = Math.sin(elapsed * swayFreq * 1.2) * 0.06;
+          leftArmGroup.rotation.x = Math.sin(elapsed * swayFreq) * 0.18;
+          rightArmGroup.rotation.x = -Math.sin(elapsed * swayFreq) * 0.18;
+        } else {
+          // Diam tegak mengawasi saat Lampu Merah
+          dollGroup.rotation.z += (0 - dollGroup.rotation.z) * 0.2;
+          dollGroup.position.y += (0 - dollGroup.position.y) * 0.2;
+          leftArmGroup.rotation.x += (0 - leftArmGroup.rotation.x) * 0.2;
+          rightArmGroup.rotation.x += (0 - rightArmGroup.rotation.x) * 0.2;
+
+          // Kepala sedikit menoleh memindai kiri-kanan saat Red Light
+          if (gameState.phase === "RED_LIGHT") {
+            headGroup.rotation.y = Math.sin(elapsed * 2.2) * 0.22;
+            headGroup.rotation.z = Math.sin(elapsed * 1.5) * 0.03;
+          } else {
+            headGroup.rotation.y += (0 - headGroup.rotation.y) * 0.25;
+            headGroup.rotation.z += (0 - headGroup.rotation.z) * 0.25;
+          }
+        }
+      }
+
+      // Animasi gandum tertiup angin & awan bergerak
+      for (let i = 0; i < wheatBlades.length; i++) {
+        const wb = wheatBlades[i];
+        wb.mesh.rotation.z = wb.baseRotZ + Math.sin(elapsed * 1.8 + wb.phase) * 0.09;
+      }
+
+      if (cloudGroup) {
+        cloudGroup.position.x = Math.sin(elapsed * 0.08) * 1.8;
+      }
+
+      // Update posisi kamera orbit 3D
+      if (camera) {
+        const radius = 7.6;
+        camera.position.x = Math.sin(cameraOrbitAngle) * radius;
+        camera.position.z = Math.cos(cameraOrbitAngle) * radius;
+        camera.position.y = cameraOrbitHeight;
+        camera.lookAt(0, 2.05, 0);
+      }
+
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+
+      // Proses deteksi gerak kamera webcam setiap frame
+      if (gameState.started) {
+        processWebcamFrame();
+      }
+    }
+
+    /**
+     * ============================================================================
+     * EVENT LISTENERS KONTROL UI
+     * ============================================================================
+     */
+    startBtn.addEventListener("click", async () => {
+      startBtn.disabled = true;
+      startBtn.innerHTML = `<span>⏳ MENGAKTIFKAN KAMERA & AUDIO...</span>`;
+
+      // Buka kunci audio browser pada interaksi klik pertama
+      initWebAudioFallback();
+      try {
+        songAudio.volume = 1.0;
+        gunfireAudio.volume = 1.0;
+      } catch (e) {}
+
+      const camOk = await setupWebcam();
+      if (!camOk) {
+        cameraErrorMsg.textContent = "Kamera tidak ditemukan/diizinkan. Game tetap berjalan dalam Mode Simulasi (gerakkan kursor di kotak kanan).";
+        cameraErrorMsg.classList.remove("hidden");
+      }
+
+      setTimeout(() => {
+        startModal.classList.add("hidden");
+        gameState.started = true;
+        startGreenLightRound();
+      }, camOk ? 250 : 1100);
+    });
+
+    // Slider Sensitivitas
+    sensitivitySlider.addEventListener("input", e => {
+      const val = parseInt(e.target.value, 10);
+      gameState.sensitivity = val;
+      let label = "Sedang";
+      if (val < 35) label = "Rendah (Ruang Ramai)";
+      else if (val > 75) label = "Tinggi (Sangat Peka)";
+      sensitivityVal.textContent = `${val}% (${label})`;
+    });
+
+    // Tombol Pause / Lanjut
+    pauseBtn.addEventListener("click", () => {
+      if (!gameState.started) return;
+      gameState.isPaused = !gameState.isPaused;
+
+      if (gameState.isPaused) {
+        clearAllGameTimers();
+        songAudio.pause();
+        gunfireAudio.pause();
+        pauseIcon.textContent = "▶️";
+        pauseText.textContent = "Lanjut";
+        pauseBtn.className = "px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow";
+        statusPill.className = "flex-1 min-w-[230px] max-w-md mx-auto text-center py-2 px-4 rounded-xl bg-amber-600 border-2 border-amber-200";
+        statusText.textContent = "⏸️ GAME DIJEDA (PAUSE)";
+      } else {
+        pauseIcon.textContent = "⏸️";
+        pauseText.textContent = "Pause";
+        pauseBtn.className = "px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5 shadow";
+        startGreenLightRound();
+      }
+    });
+
+    // Tombol Uji Lampu Merah Langsung
+    forceRedBtn.addEventListener("click", () => {
+      if (!gameState.started || gameState.isPaused) return;
+      if (gameState.phase === "GREEN_LIGHT") {
+        transitionToRedLight();
+      }
+    });
+
+    // Tombol Reset Skor
+    resetBtn.addEventListener("click", () => {
+      gameState.round = 0;
+      gameState.safeRounds = 0;
+      gameState.eliminations = 0;
+      roundCountEl.textContent = "0";
+      safeCountEl.textContent = "0";
+      elimCountEl.textContent = "0";
+      if (gameState.started && !gameState.isPaused) {
+        startGreenLightRound();
+      }
+    });
+
+    // Inisialisasi saat halaman dimuat
+    window.onload = function () {
+      initThreeJS();
+      animate();
+    };
+  </script>
+</body>
+</html>
